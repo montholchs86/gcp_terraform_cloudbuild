@@ -1,0 +1,40 @@
+steps:
+  # 1. Authenticate Docker to push to Docker Hub
+  - name: gcr.io/cloud-builders/docker
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        echo 'password1' | docker login -u 'monthol.chang@gmail.com' --password-stdin
+
+  # 2. Build the Docker image
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - '--platform=linux/amd64'
+      - '-t'
+      - 'montholch86/flask-app:latest'
+      - .
+
+  # 3. Push the Docker image to Docker Hub
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - 'montholch86/flask-app:latest'
+
+  # 4. SSH into the GCE instance using gcloud and update the Flask container
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - 'compute'
+      - 'ssh'
+      - 'monthol@changsathien-instance'
+      - '--zone'
+      - 'us-central1-a'
+      - '--command'
+      - |
+        sudo docker pull montholch86/flask-app:latest
+        sudo docker stop flask-app || true
+        sudo docker rm flask-app || true
+        sudo docker run -d --name flask-app -p 4000:4000 montholch86/flask-app:latest
+
+timeout: 1200s # Optional: Increase timeout if needed
